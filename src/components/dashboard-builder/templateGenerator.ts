@@ -137,6 +137,9 @@ export function makeChart(
   } as DashboardComponent;
 }
 
+// Alias for internal usage
+const makeChartCustom = makeChart;
+
 // Build the four required templates
 const defaultTemplates: Template[] = [];
 
