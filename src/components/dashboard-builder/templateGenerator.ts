@@ -88,7 +88,7 @@ function getContrastColor(hex: string, makeSemiTransparent = 1) {
   }
 }
 
-function makeChartCustom(
+export function makeChart(
   idSuffix: string,
   chosenType: string,
   title: string,
