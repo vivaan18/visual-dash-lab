@@ -1,0 +1,155 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 240 10% 98%;
+    --foreground: 240 10% 3.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+
+    --primary: 262 83% 58%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 220 14.3% 95.9%;
+    --secondary-foreground: 220 8.9% 46.1%;
+
+    --muted: 220 14.3% 95.9%;
+    --muted-foreground: 220 8.9% 46.1%;
+
+    --accent: 262 83% 58%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 262 83% 58%;
+
+    --radius: 0.75rem;
+    
+    /* Custom gradient and effect tokens */
+    --gradient-primary: linear-gradient(135deg, hsl(262 83% 58%), hsl(268 82% 60%));
+    --gradient-background: linear-gradient(180deg, hsl(240 10% 98%), hsl(220 13% 95%));
+    --shadow-elegant: 0 10px 30px -10px hsl(262 83% 58% / 0.15);
+    --shadow-card: 0 4px 12px -4px hsl(220 13% 91% / 0.4);
+    --glow-primary: 0 0 40px hsl(262 83% 58% / 0.2);
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Tech aesthetic patterns */
+    --dot-spacing: 20px;
+    --dot-size: 1px;
+  }
+
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+
+    --card: 240 10% 5.9%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 240 10% 5.9%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 262 83% 58%;
+    --primary-foreground: 0 0% 98%;
+
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+
+    --accent: 262 83% 58%;
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 262 83% 58%;
+    
+    /* Dark mode custom tokens */
+    --gradient-primary: linear-gradient(135deg, hsl(262 83% 58%), hsl(268 82% 60%));
+    --gradient-background: linear-gradient(180deg, hsl(240 10% 3.9%), hsl(240 3.7% 8%));
+    --shadow-elegant: 0 10px 30px -10px hsl(262 83% 58% / 0.3);
+    --shadow-card: 0 4px 12px -4px hsl(0 0% 0% / 0.3);
+    --glow-primary: 0 0 40px hsl(262 83% 58% / 0.4);
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-inter;
+  }
+  
+  /* Chart specific styles */
+  .recharts-wrapper {
+    font-family: 'Inter', sans-serif !important;
+  }
+  
+  .recharts-cartesian-axis-tick-value,
+  .recharts-polar-angle-axis-tick-value,
+  .recharts-legend-item-text,
+  .recharts-tooltip-wrapper {
+    font-family: 'Inter', sans-serif !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+  }
+  
+  .recharts-cartesian-grid-horizontal line,
+  .recharts-cartesian-grid-vertical line {
+    stroke: hsl(var(--border)) !important;
+    stroke-width: 0.5 !important;
+    opacity: 0.4 !important;
+  }
+  
+  .recharts-tooltip-wrapper {
+    border-radius: 8px !important;
+    box-shadow: 0 10px 30px -10px hsl(var(--foreground) / 0.1) !important;
+  }
+
+  /* Tech aesthetic backgrounds */
+  .bg-dot-pattern {
+    background-image: radial-gradient(circle, hsl(var(--primary) / 0.15) var(--dot-size), transparent var(--dot-size));
+    background-size: var(--dot-spacing) var(--dot-spacing);
+  }
+
+  .bg-gradient-radial {
+    background: radial-gradient(circle at center, var(--tw-gradient-stops));
+  }
+}
