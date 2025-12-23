@@ -190,11 +190,112 @@ export function AITemplateGenerator({
   const [paletteText, setPaletteText] = useState<string>(defaultColor ? defaultColor : '#2563eb');
   const [useServerAI, setUseServerAI] = useState<boolean>(false);
 
-  const parsePalette = (text: string) =>
+  // Validate hex color
+  const isValidHex = (c: string) => /^#[0-9A-Fa-f]{6}$/i.test(c?.trim());
+
+  const parsePalette = (text: string): string[] =>
     text
-      .split(/[,\s]+/) // split by comma or whitespace
+      .split(/[,\s]+/)
       .map((s) => s.trim())
-      .filter((s) => s.length > 0);
+      .filter((s) => s.length > 0 && isValidHex(s));
+
+  // Generate complementary colors from a base color
+  const generateComplementaryColors = (baseHex: string, count: number = 6): string[] => {
+    const colors = [baseHex];
+    const base = parseInt(baseHex.slice(1), 16);
+    const r = (base >> 16) & 255;
+    const g = (base >> 8) & 255;
+    const b = base & 255;
+
+    const hueShifts = [40, 80, 160, 200, 280, 320];
+    for (let i = 0; i < count - 1 && i < hueShifts.length; i++) {
+      const shift = hueShifts[i];
+      const newR = Math.min(255, Math.max(0, (r + shift) % 256));
+      const newG = Math.min(255, Math.max(0, (g + shift * 0.7) % 256));
+      const newB = Math.min(255, Math.max(0, (b + shift * 0.5) % 256));
+      colors.push(`#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`);
+    }
+    return colors.slice(0, count);
+  };
+
+  // Get contrast color for text on colored background
+  const getContrastColor = (hexColor: string): string => {
+    const hex = hexColor.replace('#', '');
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.5 ? '#1f2937' : '#ffffff';
+  };
+
+  // Smart chart type inference with variety tracking
+  const inferChartType = (label: string, index: number, usedTypes: string[]): string => {
+    const l = label.toLowerCase();
+    
+    // Priority rules based on keywords
+    if (l.includes('trend') || l.includes('over time') || l.includes('growth') || l.includes('timeline')) return 'line-chart';
+    if (l.includes('distribution') || l.includes('breakdown') || l.includes('share') || l.includes('mix')) return 'pie-chart';
+    if (l.includes('comparison') || l.includes('vs') || l.includes('by category') || l.includes('ranking')) return 'bar-chart';
+    if (l.includes('progress') || l.includes('goal') || l.includes('score') || l.includes('gauge') || l.includes('target')) return 'gauge';
+    if (l.includes('funnel') || l.includes('conversion') || l.includes('pipeline')) return 'funnel-chart';
+    if (l.includes('area') || l.includes('cumulative') || l.includes('volume') || l.includes('stacked')) return 'area-chart';
+    if (l.includes('donut') || l.includes('proportion') || l.includes('percentage')) return 'donut-chart';
+    
+    // Ensure variety - pick chart types not yet used
+    const allChartTypes = ['bar-chart', 'line-chart', 'pie-chart', 'area-chart', 'donut-chart', 'gauge'];
+    const unusedTypes = allChartTypes.filter(t => !usedTypes.includes(t));
+    
+    if (unusedTypes.length > 0) {
+      return unusedTypes[index % unusedTypes.length];
+    }
+    
+    // Fallback to cycling through all types
+    return allChartTypes[index % allChartTypes.length];
+  };
+
+  // Apply palette colors consistently to components
+  const applyPaletteToComponents = (
+    kpis: Omit<DashboardComponent, 'position' | 'zIndex'>[],
+    charts: Omit<DashboardComponent, 'position' | 'zIndex'>[],
+    colorPalette: string[]
+  ) => {
+    // Apply to KPIs - use palette for backgroundColor
+    const coloredKpis = kpis.map((kpi, i) => {
+      const paletteColor = colorPalette[i % colorPalette.length];
+      return {
+        ...kpi,
+        properties: {
+          ...kpi.properties,
+          backgroundColor: paletteColor,
+          color: paletteColor,
+          valueColor: getContrastColor(paletteColor),
+        }
+      };
+    });
+
+    // Apply to Charts - use palette for chart color and series colors
+    const coloredCharts = charts.map((chart, i) => {
+      const paletteColor = colorPalette[(i + kpis.length) % colorPalette.length];
+      const existingSeries = (chart.properties as any)?.series;
+      const series = existingSeries 
+        ? existingSeries.map((s: any, si: number) => ({
+            ...s,
+            color: colorPalette[(si + i + kpis.length) % colorPalette.length]
+          }))
+        : [{ dataKey: 'value', color: paletteColor, name: (chart.properties as any)?.title || 'Value' }];
+      
+      return {
+        ...chart,
+        properties: {
+          ...chart.properties,
+          color: paletteColor,
+          series,
+        }
+      };
+    });
+
+    return { coloredKpis, coloredCharts };
+  };
 
   const handleGenerate = async () => {
     if (!templateType.trim()) {
@@ -207,202 +308,196 @@ export function AITemplateGenerator({
     }
 
     setIsGenerating(true);
-      try {
-          // If user opted into server-side LLM, call the Supabase Edge Function
-          if (useServerAI) {
-            const { data, error } = await supabase.functions.invoke('generate-template', {
-              body: { templateType: templateType.trim(), description: description.trim(), features: features.trim(), palette: paletteText }
-            });
+    try {
+      // Parse and validate user palette
+      let userPalette = parsePalette(paletteText);
+      
+      // If only accent color provided or single color, generate complementary colors
+      if (userPalette.length === 0 && isValidHex(selectedColor)) {
+        userPalette = generateComplementaryColors(selectedColor, 6);
+      } else if (userPalette.length === 1) {
+        userPalette = generateComplementaryColors(userPalette[0], 6);
+      }
+      
+      // Final palette with at least the selected color
+      const colorPalette = userPalette.length >= 2 ? userPalette : 
+        (isValidHex(selectedColor) ? generateComplementaryColors(selectedColor, 6) : ['#2563eb', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444', '#ec4899']);
 
-            if (error) throw error;
-            if (!data?.template) throw new Error('No template returned from server AI');
-
-            // Normalize server template colors and ensure it fits the canvas by re-layout.
-            const srv = data.template as any;
-            const srvComps: any[] = Array.isArray(srv.components) ? srv.components : [];
-
-            // Resolve palette priority: user-provided palette > server-provided palette > selectedColor
-            const serverPalette: string[] = (srv.aiMeta && Array.isArray(srv.aiMeta.palette)) ? srv.aiMeta.palette : [];
-            const userPalette = parsePalette(paletteText).filter(Boolean);
-            const colorPalette = userPalette.length ? userPalette : (serverPalette.length ? serverPalette : [selectedColor || '#2563eb']);
-
-            // Normalize components to compact no-position format so generateCompactGridLayout can place them
-            const compsNoPos: Omit<DashboardComponent, 'position' | 'zIndex'>[] = srvComps.map((c: any, i: number) => {
-              const isKpi = (c.type === 'kpi-card' || c.type === 'kpi');
-              const size = c.size ?? (isKpi ? { width: COMPACT_KPI_WIDTH, height: COMPACT_KPI_HEIGHT } : { width: COMPACT_CHART_WIDTH, height: COMPACT_CHART_HEIGHT });
-              const title = (c.properties && (c.properties.title || c.title)) || c.title || (isKpi ? `Metric ${i+1}` : `Chart ${i+1}`);
-
-              const assignedColor = c.properties?.color || c.color || colorPalette[i % colorPalette.length];
-
-              const properties = {
-                ...(c.properties || {}),
-                title,
-                // For KPI, prefer backgroundColor for the tile; for charts, set color
-                ...(isKpi ? { backgroundColor: c.properties?.backgroundColor || assignedColor } : { color: c.properties?.color || assignedColor }),
-              } as any;
-
-              return {
-                id: c.id || `srv_${i}`,
-                type: isKpi ? 'kpi-card' : (c.type || 'bar-chart'),
-                size,
-                properties,
-              } as Omit<DashboardComponent, 'position' | 'zIndex'>;
-            });
-
-            const optimized = generateCompactGridLayout(compsNoPos as any, (canvasWidth || window?.innerWidth || 1300));
-
-            const adjustedTemplate = {
-              id: srv.id || `ai-${Date.now()}`,
-              name: srv.name || templateType || 'AI Template',
-              description: srv.description || description || '',
-              thumbnail: srv.thumbnail || '✨',
-              components: optimized,
-            } as any;
-            (adjustedTemplate as any).aiMeta = { ...(srv.aiMeta || {}), palette: colorPalette };
-
-            onTemplateGenerated(adjustedTemplate);
-            toast({ title: 'Template generated', description: `Generated ${optimized.length} components (server AI)` });
-            onClose();
-            setIsGenerating(false);
-            setTemplateType('');
-            setDescription('');
-            setFeatures('');
-            return;
+      // If user opted into server-side LLM, call the Supabase Edge Function
+      if (useServerAI) {
+        const { data, error } = await supabase.functions.invoke('generate-template', {
+          body: { 
+            templateType: templateType.trim(), 
+            description: description.trim(), 
+            features: features.trim(), 
+            palette: colorPalette.join(', ')  // Send validated palette
           }
-        const items = features.split(/[\,\n]+/).map(s => s.trim()).filter(Boolean);
-        let finalKpis: string[] = [];
-        let finalCharts: string[] = [];
-        if (items.length === 0) {
-          const q = templateType.trim().toLowerCase();
-          const match = defaultTemplates.find(t => (t.industry && String(t.industry).toLowerCase() === q) || (t.name && String(t.name).toLowerCase().includes(q)));
-          if (match) {
-            const kpiTitles = match.components.filter((c: any) => c.type === 'kpi-card').map((c: any) => (c.properties && (c.properties.title || c.properties.kpiLabel)) || 'Metric');
-            const chartTitles = match.components.filter((c: any) => c.type !== 'kpi-card').map((c: any) => ({ type: c.type, title: (c.properties && c.properties.title) || 'Chart' }));
-            finalKpis = kpiTitles.slice(0, 6).map((t: string) => t);
-            finalCharts = chartTitles.slice(0, 6).map((t: any) => t.title);
-          } else {
-            const fallbackKpis = ['Total Revenue', 'Active Users', 'Conversion Rate', 'New Customers', 'Average Order Value', 'Churn Rate'];
-            const fallbackCharts = ['Revenue Trend', 'Users Over Time', 'Sales by Region', 'Top Products', 'Conversion Funnel', 'Customer Cohort'];
-            finalKpis = fallbackKpis;
-            finalCharts = fallbackCharts;
-          }
-        } else {
-          const kpiKeywords = ['kpi','total','sum','average','avg','rate','percentage','%','cash','$','count','number','score','index','ltv','revenue','profit','margin','churn','growth'];
-          const chartKeywords = ['chart','by','vs','trend','over time','distribution','breakdown','comparison','trend','vs.','vs','histogram','scatter','area','bar','line','pie','donut','gauge'];
-
-          const normalize = (s: string) => s.toLowerCase();
-
-          const classify = (s: string): 'kpi' | 'chart' => {
-            const lower = normalize(s);
-            if (/\(kpi\)|\[kpi\]/i.test(s)) return 'kpi';
-            if (/\(chart\)|\[chart\]/i.test(s)) return 'chart';
-            for (const kw of kpiKeywords) if (lower.includes(kw)) return 'kpi';
-            for (const kw of chartKeywords) if (lower.includes(kw)) return 'chart';
-            if (/(\bby\b|\bvs\b|over time|trend)/.test(lower)) return 'chart';
-            if (s.length < 24 && /\d|%|\$/.test(s)) return 'kpi';
-            return 'chart';
-          };
-
-          const kpiItems: string[] = [];
-          const chartItems: string[] = [];
-          for (const it of items) {
-            const cls = classify(it);
-            if (cls === 'kpi') kpiItems.push(it);
-            else chartItems.push(it);
-          }
-
-          const makeDefaults = (prefix: string, count: number) => Array.from({length: count}, (_, i) => `${prefix} ${i + 1}`);
-
-          finalKpis = kpiItems.slice(0, 6);
-          finalCharts = chartItems.slice(0, 6);
-
-          if (finalKpis.length < 6) {
-            const needed = 6 - finalKpis.length;
-            const fromCharts = chartItems.slice(0, needed).map(s => `${s} (KPI)`);
-            finalKpis.push(...fromCharts);
-            if (finalKpis.length < 6) finalKpis.push(...makeDefaults('KPI', 6 - finalKpis.length));
-          }
-
-          if (finalCharts.length < 6) {
-            const needed = 6 - finalCharts.length;
-            const fromKpis = kpiItems.slice(0, needed).map(s => `${s} Chart`);
-            finalCharts.push(...fromKpis);
-            if (finalCharts.length < 6) finalCharts.push(...makeDefaults('Chart', 6 - finalCharts.length));
-          }
-
-        }
-
-        const userPalette = parsePalette(paletteText).filter(Boolean);
-        let colorPalette = userPalette.length ? userPalette : [selectedColor || '#2563eb'];
-        if (!userPalette.length) {
-          const q = templateType.trim().toLowerCase();
-          const match = defaultTemplates.find(t => (t.industry && String(t.industry).toLowerCase() === q) || (t.name && String(t.name).toLowerCase().includes(q)));
-          if (match && (match as any).components && (match as any).components.length) {
-            const kp = (match as any).components.find((c: any) => c.type === 'kpi-card');
-            if (kp && kp.properties && kp.properties.backgroundColor) {
-              colorPalette = [kp.properties.backgroundColor, ...(colorPalette.slice(1))];
-            }
-          }
-        }
-
-        // Build KPI components using palette (cycle colors)
-        // KPIs should display a blank label by default (user requested). Preserve the original metric name
-        // in `dataKey` so it can be mapped to data later.
-        const kpisRaw = finalKpis.map((origTitle, i) => {
-          const value = Math.floor(Math.random() * 10000).toLocaleString();
-          const visibleTitle = String(origTitle || `${templateType} Metric ${i + 1}`);
-          const k = createCompactKPI(`ai_kpi_${i}`, visibleTitle, value, colorPalette[i % colorPalette.length]);
-          (k.properties as any).dataKey = origTitle;
-          (k.properties as any).originalLabel = origTitle;
-          return k;
         });
 
-        // Determine chart types heuristically (try to infer from the text)
-        const inferChartType = (label: string) => {
-          const l = label.toLowerCase();
-          if (l.includes('trend') || l.includes('over time') || l.includes('growth')) return 'line-chart';
-          if (l.includes('by') || l.includes('comparison') || l.includes('vs')) return 'bar-chart';
-          if (l.includes('share') || l.includes('mix') || l.includes('distribution') || l.includes('breakdown')) return 'pie-chart';
-          if (l.includes('gauge') || l.includes('score') || l.includes('goal')) return 'gauge';
-          if (l.includes('area')) return 'area-chart';
-          return 'bar-chart';
-        };
+        if (error) throw error;
+        if (!data?.template) throw new Error('No template returned from server AI');
 
-        const chartsRaw = finalCharts.slice(0,6).map((label, i) => {
-          const ct = inferChartType(label) as any;
-          const color = colorPalette[(i + kpisRaw.length) % colorPalette.length];
-          const visibleTitle = String(label || `${templateType} Chart ${i + 1}`);
-          return createCompactChart(`ai_chart_${i}`, ct, visibleTitle, color, Math.floor(Math.random() * 1000));
+        const srv = data.template as any;
+        const srvComps: any[] = Array.isArray(srv.components) ? srv.components : [];
+
+        // POST-PROCESS: Enforce user palette regardless of what server returned
+        const compsNoPos: Omit<DashboardComponent, 'position' | 'zIndex'>[] = srvComps.map((c: any, i: number) => {
+          const isKpi = (c.type === 'kpi-card' || c.type === 'kpi');
+          const size = c.size ?? (isKpi ? { width: COMPACT_KPI_WIDTH, height: COMPACT_KPI_HEIGHT } : { width: COMPACT_CHART_WIDTH, height: COMPACT_CHART_HEIGHT });
+          const title = (c.properties && (c.properties.title || c.title)) || c.title || (isKpi ? `Metric ${i+1}` : `Chart ${i+1}`);
+          const paletteColor = colorPalette[i % colorPalette.length];
+
+          const properties = {
+            ...(c.properties || {}),
+            title,
+            color: paletteColor,
+            ...(isKpi ? { 
+              backgroundColor: paletteColor,
+              valueColor: getContrastColor(paletteColor)
+            } : {
+              series: [{ dataKey: 'value', color: paletteColor, name: title }]
+            }),
+          } as any;
+
+          return {
+            id: c.id || `srv_${i}`,
+            type: isKpi ? 'kpi-card' : (c.type || 'bar-chart'),
+            size,
+            properties,
+          } as Omit<DashboardComponent, 'position' | 'zIndex'>;
         });
 
-        // Combine and generate an optimized layout sized for the canvas width passed via props
-        const combined = [...kpisRaw, ...chartsRaw];
-  const optimized = generateCompactGridLayout(combined as any, (canvasWidth || window?.innerWidth || 1300));
+        const optimized = generateCompactGridLayout(compsNoPos as any, (canvasWidth || window?.innerWidth || 1300));
 
-        const template = {
-          id: `ai-${Date.now()}`,
-          name: templateType || 'AI Template',
-          description: description || `AI generated template for ${templateType}`,
-          thumbnail: '✨',
+        const adjustedTemplate = {
+          id: srv.id || `ai-${Date.now()}`,
+          name: srv.name || templateType || 'AI Template',
+          description: srv.description || description || '',
+          thumbnail: srv.thumbnail || '✨',
           components: optimized,
-        };
+          aiMeta: { palette: colorPalette, description: description, templateType }
+        } as any;
 
-  // Embed metadata including the color palette
-  (template as any).aiMeta = { description: description || '', requiredFeatures: items, palette: colorPalette };
-
-        onTemplateGenerated(template);
-        toast({ title: 'Template generated', description: `Generated ${optimized.length} components` });
+        onTemplateGenerated(adjustedTemplate);
+        toast({ title: 'Template generated', description: `Generated ${optimized.length} components (server AI)` });
         onClose();
-        // reset
+        setIsGenerating(false);
         setTemplateType('');
         setDescription('');
         setFeatures('');
-      } catch (err: any) {
-        console.error('AI generate failed', err);
-        toast({ title: 'Generation failed', description: err?.message || 'Unknown error', variant: 'destructive' });
-      } finally {
-        setIsGenerating(false);
+        return;
       }
+
+      // LOCAL AI MODE
+      const items = features.split(/[\,\n]+/).map(s => s.trim()).filter(Boolean);
+      let finalKpis: string[] = [];
+      let finalCharts: string[] = [];
+      
+      if (items.length === 0) {
+        const q = templateType.trim().toLowerCase();
+        const match = defaultTemplates.find(t => (t.industry && String(t.industry).toLowerCase() === q) || (t.name && String(t.name).toLowerCase().includes(q)));
+        if (match) {
+          const kpiTitles = match.components.filter((c: any) => c.type === 'kpi-card').map((c: any) => (c.properties && (c.properties.title || c.properties.kpiLabel)) || 'Metric');
+          const chartTitles = match.components.filter((c: any) => c.type !== 'kpi-card').map((c: any) => ({ type: c.type, title: (c.properties && c.properties.title) || 'Chart' }));
+          finalKpis = kpiTitles.slice(0, 6).map((t: string) => t);
+          finalCharts = chartTitles.slice(0, 6).map((t: any) => t.title);
+        } else {
+          finalKpis = ['Total Revenue', 'Active Users', 'Conversion Rate', 'New Customers', 'Average Order Value', 'Churn Rate'];
+          finalCharts = ['Revenue Trend', 'Users Over Time', 'Sales by Region', 'Top Products', 'Conversion Funnel', 'Customer Cohort'];
+        }
+      } else {
+        const kpiKeywords = ['kpi','total','sum','average','avg','rate','percentage','%','cash','$','count','number','score','index','ltv','revenue','profit','margin','churn','growth'];
+        const chartKeywords = ['chart','by','vs','trend','over time','distribution','breakdown','comparison','trend','vs.','vs','histogram','scatter','area','bar','line','pie','donut','gauge'];
+
+        const normalize = (s: string) => s.toLowerCase();
+
+        const classify = (s: string): 'kpi' | 'chart' => {
+          const lower = normalize(s);
+          if (/\(kpi\)|\[kpi\]/i.test(s)) return 'kpi';
+          if (/\(chart\)|\[chart\]/i.test(s)) return 'chart';
+          for (const kw of kpiKeywords) if (lower.includes(kw)) return 'kpi';
+          for (const kw of chartKeywords) if (lower.includes(kw)) return 'chart';
+          if (/(\bby\b|\bvs\b|over time|trend)/.test(lower)) return 'chart';
+          if (s.length < 24 && /\d|%|\$/.test(s)) return 'kpi';
+          return 'chart';
+        };
+
+        const kpiItems: string[] = [];
+        const chartItems: string[] = [];
+        for (const it of items) {
+          const cls = classify(it);
+          if (cls === 'kpi') kpiItems.push(it);
+          else chartItems.push(it);
+        }
+
+        const makeDefaults = (prefix: string, count: number) => Array.from({length: count}, (_, i) => `${prefix} ${i + 1}`);
+
+        finalKpis = kpiItems.slice(0, 6);
+        finalCharts = chartItems.slice(0, 6);
+
+        if (finalKpis.length < 6) {
+          const needed = 6 - finalKpis.length;
+          const fromCharts = chartItems.slice(0, needed).map(s => `${s} (KPI)`);
+          finalKpis.push(...fromCharts);
+          if (finalKpis.length < 6) finalKpis.push(...makeDefaults('KPI', 6 - finalKpis.length));
+        }
+
+        if (finalCharts.length < 6) {
+          const needed = 6 - finalCharts.length;
+          const fromKpis = kpiItems.slice(0, needed).map(s => `${s} Chart`);
+          finalCharts.push(...fromKpis);
+          if (finalCharts.length < 6) finalCharts.push(...makeDefaults('Chart', 6 - finalCharts.length));
+        }
+      }
+
+      // Build KPI components
+      const kpisRaw = finalKpis.map((origTitle, i) => {
+        const value = Math.floor(Math.random() * 10000).toLocaleString();
+        const visibleTitle = String(origTitle || `${templateType} Metric ${i + 1}`);
+        const k = createCompactKPI(`ai_kpi_${i}`, visibleTitle, value, colorPalette[i % colorPalette.length]);
+        (k.properties as any).dataKey = origTitle;
+        (k.properties as any).originalLabel = origTitle;
+        return k;
+      });
+
+      // Build chart components with smart type inference and variety
+      const usedChartTypes: string[] = [];
+      const chartsRaw = finalCharts.slice(0, 6).map((label, i) => {
+        const ct = inferChartType(label, i, usedChartTypes) as any;
+        usedChartTypes.push(ct);
+        const color = colorPalette[(i + kpisRaw.length) % colorPalette.length];
+        const visibleTitle = String(label || `${templateType} Chart ${i + 1}`);
+        return createCompactChart(`ai_chart_${i}`, ct, visibleTitle, color, Math.floor(Math.random() * 100));
+      });
+
+      // Apply palette colors consistently
+      const { coloredKpis, coloredCharts } = applyPaletteToComponents(kpisRaw, chartsRaw, colorPalette);
+
+      // Combine and generate optimized layout
+      const combined = [...coloredKpis, ...coloredCharts];
+      const optimized = generateCompactGridLayout(combined as any, (canvasWidth || window?.innerWidth || 1300));
+
+      const template = {
+        id: `ai-${Date.now()}`,
+        name: templateType || 'AI Template',
+        description: description || `AI generated template for ${templateType}`,
+        thumbnail: '✨',
+        components: optimized,
+        aiMeta: { description: description || '', requiredFeatures: items, palette: colorPalette }
+      };
+
+      onTemplateGenerated(template);
+      toast({ title: 'Template generated', description: `Generated ${optimized.length} components` });
+      onClose();
+      setTemplateType('');
+      setDescription('');
+      setFeatures('');
+    } catch (err: any) {
+      console.error('AI generate failed', err);
+      toast({ title: 'Generation failed', description: err?.message || 'Unknown error', variant: 'destructive' });
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
