@@ -11,24 +11,76 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Validate hex color
+const isValidHex = (c: string) => /^#[0-9A-Fa-f]{6}$/i.test(c?.trim());
+
+// Parse palette string into array of valid hex colors
+const parsePalette = (paletteStr: string): string[] => {
+  if (!paletteStr) return [];
+  return paletteStr
+    .split(/[,\s]+/)
+    .map((s) => s.trim())
+    .filter(isValidHex);
+};
+
+// Generate complementary colors from a base color
+const generateComplementaryColors = (baseHex: string, count: number = 6): string[] => {
+  const colors = [baseHex];
+  const base = parseInt(baseHex.slice(1), 16);
+  const r = (base >> 16) & 255;
+  const g = (base >> 8) & 255;
+  const b = base & 255;
+
+  // Generate variations by adjusting hue
+  const hueShifts = [30, 60, 120, 180, 240, 300];
+  for (let i = 0; i < count - 1 && i < hueShifts.length; i++) {
+    const shift = hueShifts[i];
+    const newR = Math.min(255, Math.max(0, (r + shift) % 256));
+    const newG = Math.min(255, Math.max(0, (g + shift * 0.7) % 256));
+    const newB = Math.min(255, Math.max(0, (b + shift * 0.5) % 256));
+    colors.push(`#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`);
+  }
+  return colors.slice(0, count);
+};
+
+// Default palette if none provided
+const DEFAULT_PALETTE = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444', '#ec4899'];
+
 serve(async (req: any) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { templateType, description, features } = await req.json();
-    // Support multiple env var names so projects that already have a GEMINI key can reuse it.
+    const { templateType, description, features, palette } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY") || Deno.env.get("GEMINI_API_KEY") || Deno.env.get("VITE_GEMINI_API_KEY");
     
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY or GEMINI_API_KEY is not configured");
     }
 
-    console.log("Generating template:", { templateType, description, features });
+    // Parse and validate user palette
+    let userPalette = parsePalette(palette || '');
+    
+    // If only one color provided, generate complementary colors
+    if (userPalette.length === 1) {
+      userPalette = generateComplementaryColors(userPalette[0], 6);
+      console.log("Generated complementary palette from single color:", userPalette);
+    }
+    
+    // Use user palette or default
+    const finalPalette = userPalette.length >= 2 ? userPalette : DEFAULT_PALETTE;
+    
+    console.log("Generating template:", { templateType, description, features, palette: finalPalette });
 
     const systemPrompt = `You are a dashboard template generator. Generate professional, well-designed dashboard templates.
-    
+
+MANDATORY COLOR PALETTE: You MUST use ONLY these colors for ALL components: ${finalPalette.join(', ')}
+- Cycle through these colors in order for KPIs and charts
+- KPI 1 uses color 1, KPI 2 uses color 2, etc.
+- When you run out of colors, start from the beginning
+- DO NOT use any other colors
+
 Return a JSON object with this EXACT structure:
 {
   "name": "Template name",
@@ -38,7 +90,7 @@ Return a JSON object with this EXACT structure:
       "type": "kpi-card" | "bar-chart" | "line-chart" | "pie-chart" | "area-chart" | "donut-chart" | "gauge",
       "title": "Component title",
       "value": "REQUIRED for KPI and gauge types - realistic values like '$125K', '85%', '1,234 users', '45 mins', '2.5K'",
-      "color": "#3b82f6 | #10b981 | #8b5cf6 | #f59e0b | #ef4444 | #ec4899",
+      "color": "One of the palette colors above",
       "position": {"x": number, "y": number},
       "size": {"width": number, "height": number}
     }
@@ -47,11 +99,18 @@ Return a JSON object with this EXACT structure:
 
 CRITICAL REQUIREMENTS:
 1. EXACTLY 6 KPI cards with realistic, contextual dummy values (NEVER empty or "0")
-2. EXACTLY 6 charts of DIFFERENT types (variety is key - mix bar, line, pie, donut, area, gauge)
-3. Cohesive color palette: Pick 2-3 hex colors from the list and reuse them consistently
+2. EXACTLY 6 charts - MUST use ALL 6 DIFFERENT chart types: bar-chart, line-chart, pie-chart, donut-chart, area-chart, gauge
+3. Chart type selection based on data context:
+   - "trend", "over time", "growth" → line-chart
+   - "distribution", "breakdown", "share" → pie-chart or donut-chart
+   - "comparison", "by category", "vs" → bar-chart
+   - "progress", "goal", "score" → gauge
+   - "cumulative", "volume" → area-chart
 4. Grid Layout (DO NOT OVERLAP):
-   - Row 1 (y:50): 6 KPIs in 2 rows of 3 - positions: x=50,480,910 and x=50,480,910 with y=50 and y=170
-   - Row 2-3 (y:300, y:620): 6 charts in 2 rows of 3 - same x positions
+   - Row 1 (y:50): 3 KPIs at x=50,480,910
+   - Row 2 (y:170): 3 KPIs at x=50,480,910
+   - Row 3 (y:300): 3 charts at x=50,480,910
+   - Row 4 (y:620): 3 charts at x=50,480,910
 5. Sizes: KPI cards 280x120, Charts 380x280
 6. Value Format Examples: "$1.2M", "85%", "2,456", "45 min", "3.8/5", "142K users"
 7. Titles must be specific and relevant to template type (not generic)
@@ -59,17 +118,18 @@ CRITICAL REQUIREMENTS:
 
     const userPrompt = `Generate a ${templateType} dashboard template.
 Description: ${description}
-Required features: ${features}
+Required features: ${features || 'Standard dashboard metrics'}
 
 MANDATORY CHECKLIST:
-✓ EXACTLY 6 KPI cards (type: "kpi-card") with realistic values appropriate for this domain
-✓ EXACTLY 6 different chart types from: bar-chart, line-chart, pie-chart, donut-chart, area-chart, gauge
+✓ EXACTLY 6 KPI cards (type: "kpi-card") with realistic values appropriate for ${templateType}
+✓ EXACTLY 6 charts using ALL DIFFERENT types: bar-chart, line-chart, pie-chart, donut-chart, area-chart, gauge
 ✓ Every KPI MUST have a specific, realistic "value" field (e.g., "$45.2K" not "$0" or empty)
-✓ Pick 2-3 colors from the palette and use them consistently across all 12 components
+✓ Use ONLY these colors cycling in order: ${finalPalette.join(', ')}
 ✓ Layout: KPIs in top 2 rows (y:50, y:170), Charts in bottom 2 rows (y:300, y:620)
 ✓ Positions: x values should be 50, 480, 910 for 3 columns
 ✓ NO overlapping components
-✓ Titles should be specific to ${templateType} domain (not "KPI 1", "Chart 1")`;
+✓ Titles should be specific to ${templateType} domain (not "KPI 1", "Chart 1")
+✓ Choose chart types based on what makes sense for the data (trends=line, distribution=pie, comparison=bar, progress=gauge)`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -99,10 +159,18 @@ MANDATORY CHECKLIST:
                     items: {
                       type: "object",
                       properties: {
-                        type: { type: "string", enum: ["kpi-card", "bar-chart", "line-chart", "pie-chart", "area-chart", "donut-chart", "gauge"] },
-                        title: { type: "string" },
-                        value: { type: "string", description: "Required for kpi-card and gauge types" },
-                        color: { type: "string", pattern: "^#[0-9A-Fa-f]{6}$" },
+                        type: { 
+                          type: "string", 
+                          enum: ["kpi-card", "bar-chart", "line-chart", "pie-chart", "area-chart", "donut-chart", "gauge"],
+                          description: "Component type - MUST use variety for charts"
+                        },
+                        title: { type: "string", description: "Specific title relevant to the domain" },
+                        value: { type: "string", description: "REQUIRED for kpi-card and gauge - realistic value" },
+                        color: { 
+                          type: "string", 
+                          enum: finalPalette,
+                          description: `MUST be one of: ${finalPalette.join(', ')}`
+                        },
                         position: {
                           type: "object",
                           properties: {
@@ -172,20 +240,62 @@ MANDATORY CHECKLIST:
       console.warn(`Invalid template structure. Expected 6 KPIs and 6 charts, got ${kpis.length} KPIs and ${charts.length} charts`);
     }
     
+    // POST-PROCESS: Enforce user palette on all components
+    // This guarantees the user's colors are used regardless of what AI returns
+    const enforceUserPalette = (components: any[]): any[] => {
+      return components.map((comp: any, index: number) => {
+        const paletteColor = finalPalette[index % finalPalette.length];
+        return {
+          ...comp,
+          color: paletteColor,
+          properties: {
+            ...(comp.properties || {}),
+            color: paletteColor,
+          }
+        };
+      });
+    };
+    
+    const allComponents = [...kpis, ...charts];
+    const paletteEnforcedComponents = enforceUserPalette(allComponents);
+    
     // Convert to dashboard components format with validation
-    const components = templateSpec.components.map((comp: any, index: number) => {
+    const components = paletteEnforcedComponents.map((comp: any, index: number) => {
       // Fix type name if needed
       const componentType = comp.type === "kpi" ? "kpi-card" : comp.type;
+      const paletteColor = finalPalette[index % finalPalette.length];
       
       // Ensure KPIs and gauges have values
       let value = comp.value;
       if (componentType === "kpi-card" && !value) {
-        // Generate a fallback value if missing
         const fallbackValues = ["$12.5K", "85%", "1,234", "45 min", "3.8/5", "142K"];
         value = fallbackValues[index % fallbackValues.length];
         console.warn(`Missing KPI value, using fallback: ${value}`);
       } else if (componentType === "gauge" && !value) {
         value = "75";
+      }
+      
+      // Build properties with enforced palette color
+      const isKpi = componentType === "kpi-card";
+      const properties: any = {
+        title: comp.title,
+        value: value,
+        shadow: true,
+        borderRadius: 8,
+      };
+      
+      // Apply palette color appropriately
+      if (isKpi) {
+        properties.backgroundColor = paletteColor;
+        properties.color = paletteColor;
+        properties.valueColor = '#ffffff'; // White text on colored background
+      } else {
+        properties.color = paletteColor;
+        properties.backgroundColor = '#ffffff';
+        // For charts with series, apply palette colors to each series
+        properties.series = [
+          { dataKey: 'value', color: paletteColor, name: comp.title || 'Value' }
+        ];
       }
       
       return {
@@ -194,18 +304,11 @@ MANDATORY CHECKLIST:
         position: comp.position,
         size: comp.size,
         zIndex: index + 1,
-        color: comp.color,
+        color: paletteColor,
         title: comp.title,
         value: value,
         data: !["kpi-card", "gauge"].includes(componentType) ? generateChartData(componentType) : undefined,
-        properties: {
-          title: comp.title,
-          value: value,
-          color: comp.color,
-          shadow: true,
-          backgroundColor: undefined,
-          borderRadius: undefined,
-        }
+        properties
       };
     });
 
@@ -216,7 +319,12 @@ MANDATORY CHECKLIST:
           name: templateSpec.name,
           description: templateSpec.description,
           thumbnail: "🤖",
-          components: components
+          components: components,
+          aiMeta: {
+            palette: finalPalette,
+            templateType,
+            description
+          }
         }
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -237,7 +345,3 @@ function generateChartData(chartType: string) {
     value: Math.floor(Math.random() * 100) + 20
   }));
 }
-
-
-
-/////////today
