@@ -38,6 +38,77 @@ export type Database = {
         }
         Relationships: []
       }
+      community_templates: {
+        Row: {
+          average_rating: number | null
+          category: string | null
+          components: Json
+          created_at: string | null
+          creator_id: string | null
+          dashboard_id: string | null
+          description: string | null
+          downloads_count: number | null
+          id: string
+          is_active: boolean | null
+          name: string
+          preview_image: string | null
+          tags: string[] | null
+          thumbnail_url: string | null
+          total_ratings: number | null
+          updated_at: string | null
+          version: number | null
+          visibility: string | null
+        }
+        Insert: {
+          average_rating?: number | null
+          category?: string | null
+          components: Json
+          created_at?: string | null
+          creator_id?: string | null
+          dashboard_id?: string | null
+          description?: string | null
+          downloads_count?: number | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          preview_image?: string | null
+          tags?: string[] | null
+          thumbnail_url?: string | null
+          total_ratings?: number | null
+          updated_at?: string | null
+          version?: number | null
+          visibility?: string | null
+        }
+        Update: {
+          average_rating?: number | null
+          category?: string | null
+          components?: Json
+          created_at?: string | null
+          creator_id?: string | null
+          dashboard_id?: string | null
+          description?: string | null
+          downloads_count?: number | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          preview_image?: string | null
+          tags?: string[] | null
+          thumbnail_url?: string | null
+          total_ratings?: number | null
+          updated_at?: string | null
+          version?: number | null
+          visibility?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_templates_dashboard_id_fkey"
+            columns: ["dashboard_id"]
+            isOneToOne: false
+            referencedRelation: "dashboards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dashboard_comments: {
         Row: {
           component_id: string | null
@@ -125,6 +196,11 @@ export type Database = {
       }
       dashboards: {
         Row: {
+          canvas_background_color: string | null
+          canvas_gradient_direction: string | null
+          canvas_gradient_enabled: boolean | null
+          canvas_gradient_end: string | null
+          canvas_gradient_start: string | null
           components: Json
           created_at: string
           description: string | null
@@ -135,6 +211,11 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          canvas_background_color?: string | null
+          canvas_gradient_direction?: string | null
+          canvas_gradient_enabled?: boolean | null
+          canvas_gradient_end?: string | null
+          canvas_gradient_start?: string | null
           components?: Json
           created_at?: string
           description?: string | null
@@ -145,6 +226,11 @@ export type Database = {
           user_id: string
         }
         Update: {
+          canvas_background_color?: string | null
+          canvas_gradient_direction?: string | null
+          canvas_gradient_enabled?: boolean | null
+          canvas_gradient_end?: string | null
+          canvas_gradient_start?: string | null
           components?: Json
           created_at?: string
           description?: string | null
@@ -189,6 +275,159 @@ export type Database = {
         }
         Relationships: []
       }
+      template_access_requests: {
+        Row: {
+          created_at: string | null
+          id: string
+          message: string | null
+          requester_id: string | null
+          status: string | null
+          template_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          message?: string | null
+          requester_id?: string | null
+          status?: string | null
+          template_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          message?: string | null
+          requester_id?: string | null
+          status?: string | null
+          template_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "template_access_requests_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "community_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      template_copies: {
+        Row: {
+          created_at: string | null
+          dashboard_id: string | null
+          id: string
+          template_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          dashboard_id?: string | null
+          id?: string
+          template_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          dashboard_id?: string | null
+          id?: string
+          template_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "template_copies_dashboard_id_fkey"
+            columns: ["dashboard_id"]
+            isOneToOne: false
+            referencedRelation: "dashboards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_copies_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "community_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      template_notifications: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_read: boolean | null
+          message: string
+          template_id: string | null
+          type: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message: string
+          template_id?: string | null
+          type: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message?: string
+          template_id?: string | null
+          type?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "template_notifications_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "community_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      template_ratings: {
+        Row: {
+          created_at: string | null
+          id: string
+          rating: number
+          review: string | null
+          template_id: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          rating: number
+          review?: string | null
+          template_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          rating?: number
+          review?: string | null
+          template_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "template_ratings_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "community_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -205,6 +444,35 @@ export type Database = {
         Args: { dashboard_id: string }
         Returns: boolean
       }
+      get_community_templates: {
+        Args: { p_category?: string; p_search?: string }
+        Returns: {
+          average_rating: number | null
+          category: string | null
+          components: Json
+          created_at: string | null
+          creator_id: string | null
+          dashboard_id: string | null
+          description: string | null
+          downloads_count: number | null
+          id: string
+          is_active: boolean | null
+          name: string
+          preview_image: string | null
+          tags: string[] | null
+          thumbnail_url: string | null
+          total_ratings: number | null
+          updated_at: string | null
+          version: number | null
+          visibility: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "community_templates"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       get_user_role: {
         Args: { user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -213,7 +481,13 @@ export type Database = {
         Args: { dashboard_id: string }
         Returns: boolean
       }
-      is_admin: { Args: { user_id: string }; Returns: boolean }
+      increment_template_downloads: {
+        Args: { template_id_param: string }
+        Returns: undefined
+      }
+      is_admin:
+        | { Args: never; Returns: boolean }
+        | { Args: { user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "user"
