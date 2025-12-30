@@ -149,7 +149,7 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/30 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative overflow-hidden">
       {/* Animated Background Particles */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {particles.map((p) => (
@@ -166,22 +166,22 @@ const Auth = () => {
         {/* Logo */}
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center space-x-2 mb-6 group">
-            <div className="p-2.5 bg-primary/10 rounded-xl border border-primary/20 group-hover:bg-primary/20 transition-colors">
+            <div className="p-2.5 bg-primary/20 rounded-xl border border-primary/30 group-hover:bg-primary/30 transition-colors">
               <BarChart3 className="h-7 w-7 text-primary" />
             </div>
             <span className="text-xl font-bold text-primary">Dashboard Builder</span>
           </Link>
-          <p className="text-sm text-muted-foreground">Where Data Meets Design</p>
+          <p className="text-sm text-slate-400">Where Data Meets Design</p>
         </div>
 
         {/* Glass Card */}
-        <div className="backdrop-blur-xl bg-card/80 border border-border/50 rounded-2xl p-8 shadow-2xl shadow-primary/5">
+        <div className="backdrop-blur-xl bg-slate-900/80 border border-slate-700/50 rounded-2xl p-8 shadow-2xl shadow-primary/10">
           {/* Header */}
           <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-foreground mb-2">
+            <h1 className="text-2xl font-bold text-white mb-2">
               {isSignUp ? 'Create Account' : 'Welcome Back'}
             </h1>
-            <p className="text-muted-foreground text-sm">
+            <p className="text-slate-400 text-sm">
               {isSignUp 
                 ? 'Start building amazing dashboards' 
                 : 'Sign in to continue creating amazing content'
@@ -200,11 +200,11 @@ const Auth = () => {
           <form onSubmit={handleSubmit} className="space-y-5">
             {isSignUp && (
               <div className="space-y-2">
-                <Label htmlFor="fullName" className="text-sm font-medium text-foreground/80">
-                  Full Name
+              <Label htmlFor="fullName" className="text-sm font-medium text-slate-300">
+                Full Name
                 </Label>
-                <div className="relative">
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <div className="relative">
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
                   <Input
                     id="fullName"
                     name="fullName"
@@ -212,19 +212,19 @@ const Auth = () => {
                     placeholder="Enter your full name"
                     value={formData.fullName}
                     onChange={handleInputChange}
-                    required={isSignUp}
-                    className="h-12 pl-11 bg-muted/50 border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all rounded-xl"
+                  required={isSignUp}
+                  className="h-12 pl-11 bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all rounded-xl"
                   />
                 </div>
               </div>
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium text-foreground/80">
+              <Label htmlFor="email" className="text-sm font-medium text-slate-300">
                 Email Address
               </Label>
               <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
                 <Input
                   id="email"
                   name="email"
@@ -232,18 +232,18 @@ const Auth = () => {
                   placeholder="your@email.com"
                   value={formData.email}
                   onChange={handleInputChange}
-                  required
-                  className="h-12 pl-11 bg-muted/50 border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all rounded-xl"
+                required
+                className="h-12 pl-11 bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all rounded-xl"
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm font-medium text-foreground/80">
+              <Label htmlFor="password" className="text-sm font-medium text-slate-300">
                 Password
               </Label>
               <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
                 <Input
                   id="password"
                   name="password"
@@ -251,15 +251,15 @@ const Auth = () => {
                   placeholder="••••••••••••"
                   value={formData.password}
                   onChange={handleInputChange}
-                  required
-                  className="h-12 pl-11 pr-12 bg-muted/50 border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all rounded-xl"
+                required
+                className="h-12 pl-11 pr-12 bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all rounded-xl"
                 />
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="absolute right-1 top-1/2 -translate-y-1/2 h-10 w-10 p-0 hover:bg-transparent text-muted-foreground hover:text-foreground"
-                  onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-10 w-10 p-0 hover:bg-transparent text-slate-500 hover:text-white"
+                onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
@@ -268,11 +268,11 @@ const Auth = () => {
 
             {isSignUp && (
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword" className="text-sm font-medium text-foreground/80">
+                <Label htmlFor="confirmPassword" className="text-sm font-medium text-slate-300">
                   Confirm Password
                 </Label>
                 <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
                   <Input
                     id="confirmPassword"
                     name="confirmPassword"
@@ -280,8 +280,8 @@ const Auth = () => {
                     placeholder="••••••••••••"
                     value={formData.confirmPassword}
                     onChange={handleInputChange}
-                    required={isSignUp}
-                    className="h-12 pl-11 bg-muted/50 border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all rounded-xl"
+                  required={isSignUp}
+                  className="h-12 pl-11 bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all rounded-xl"
                   />
                 </div>
               </div>
@@ -309,15 +309,15 @@ const Auth = () => {
           {/* Divider */}
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-border/50" />
+              <div className="w-full border-t border-slate-700/50" />
             </div>
             <div className="relative flex justify-center text-xs">
-              <span className="px-2 bg-card/80 text-muted-foreground">OR</span>
+              <span className="px-2 bg-slate-900/80 text-slate-500">OR</span>
             </div>
           </div>
 
           {/* Toggle Mode */}
-          <p className="text-center text-sm text-muted-foreground">
+          <p className="text-center text-sm text-slate-400">
             {isSignUp ? "Already have an account?" : "Don't have an account?"}{' '}
             <button
               type="button"
@@ -330,7 +330,7 @@ const Auth = () => {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-xs text-muted-foreground mt-6">
+        <p className="text-center text-xs text-slate-500 mt-6">
           Powered by AI • Built for Creators
         </p>
       </div>
