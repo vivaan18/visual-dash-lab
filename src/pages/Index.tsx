@@ -48,6 +48,7 @@ import {
   FolderOpen,
   Sparkles,
   Share2,
+  Telescope,
   MessageSquare
 } from 'lucide-react';
 import Toolbox from '@/components/dashboard-builder/Toolbox';
@@ -62,6 +63,7 @@ import ChartSense from '@/components/dashboard-builder/ChartSense';
 import ShareDialog from '@/components/dashboard-builder/ShareDialog';
 import CommentsPanel from '@/components/dashboard-builder/CommentsPanel';
 import InsightsPanel from '@/components/dashboard-builder/InsightsPanel';
+import ResearchPanel from '@/components/dashboard-builder/ResearchPanel';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 
 // Re-export for backward compatibility
@@ -90,6 +92,7 @@ const Index: React.FC = () => {
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [showCommentsPanel, setShowCommentsPanel] = useState(false);
   const [showInsightsPanel, setShowInsightsPanel] = useState(false);
+  const [showResearchPanel, setShowResearchPanel] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [dashboardToDelete, setDashboardToDelete] = useState<any | null>(null);
   const [currentDashboardId, setCurrentDashboardId] = useState<string | null>(null);
@@ -709,6 +712,158 @@ const Index: React.FC = () => {
     setSelectedComponent(newComponent.id);
   };
 
+  // Research Panel handlers
+  const handleAddKPIFromResearch = (kpi: { name: string; value: string; trend: 'up' | 'down' | 'stable' }) => {
+    const position = findAvailablePosition(components);
+    const newComponent: DashboardComponent = {
+      id: `kpi-${Date.now()}`,
+      type: 'kpi-card',
+      position,
+      size: { width: 211, height: 118 },
+      zIndex: nextZIndex,
+      properties: {
+        title: kpi.name,
+        kpiLabel: kpi.name,
+        value: parseFloat(kpi.value.replace(/[^0-9.-]/g, '')) || 0,
+        targetValue: 0,
+        showTrend: true,
+        showTarget: false,
+        color: kpi.trend === 'up' ? '#10b981' : kpi.trend === 'down' ? '#ef4444' : '#6366f1',
+      },
+    };
+    
+    const newComponents = [...components, newComponent];
+    setComponents(newComponents);
+    setNextZIndex(prev => prev + 1);
+    saveToHistory(newComponents, newComponent.id);
+    setSelectedComponent(newComponent.id);
+  };
+
+  const handleAddChartFromResearch = (chart: { type: string; title: string }) => {
+    const position = findAvailablePosition(components);
+    const chartColors = ['#6366f1', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ec4899'];
+    const colorIndex = components.filter(c => c.type.includes('chart')).length % chartColors.length;
+
+    const newComponent: DashboardComponent = {
+      id: `chart-${Date.now()}`,
+      type: chart.type as DashboardComponent['type'],
+      position,
+      size: { width: 424, height: 303 },
+      zIndex: nextZIndex,
+      properties: {
+        title: chart.title,
+        color: chartColors[colorIndex],
+        showLegend: true,
+        showGrid: true,
+        data: generateSampleDataForChartType(chart.type),
+      },
+    };
+    
+    const newComponents = [...components, newComponent];
+    setComponents(newComponents);
+    setNextZIndex(prev => prev + 1);
+    saveToHistory(newComponents, newComponent.id);
+    setSelectedComponent(newComponent.id);
+  };
+
+  const handleApplyResearchPalette = (colors: string[]) => {
+    const newComponents = components.map((comp, idx) => {
+      const colorIndex = idx % colors.length;
+      return {
+        ...comp,
+        properties: {
+          ...comp.properties,
+          color: colors[colorIndex],
+        },
+      };
+    });
+    setComponents(newComponents);
+    saveToHistory(newComponents, selectedComponent);
+    toast({
+      title: "Palette Applied",
+      description: "Research color palette has been applied to all components.",
+    });
+  };
+
+  const handleGenerateDashboardFromResearch = (research: any) => {
+    const newComponents: DashboardComponent[] = [];
+    let currentY = 20;
+    let currentX = 20;
+    let maxRowHeight = 0;
+    const canvasWidth = canvasRef.current?.clientWidth || 1200;
+    
+    // Add KPI cards in a row
+    research.keyMetrics.slice(0, 4).forEach((metric: any, idx: number) => {
+      const kpiWidth = 211;
+      const kpiHeight = 118;
+      
+      if (currentX + kpiWidth > canvasWidth - 20) {
+        currentX = 20;
+        currentY += maxRowHeight + 20;
+        maxRowHeight = 0;
+      }
+      
+      newComponents.push({
+        id: `kpi-${Date.now()}-${idx}`,
+        type: 'kpi-card',
+        position: { x: currentX, y: currentY },
+        size: { width: kpiWidth, height: kpiHeight },
+        zIndex: idx + 1,
+        properties: {
+          title: metric.name,
+          kpiLabel: metric.name,
+          value: parseFloat(metric.sampleValue.replace(/[^0-9.-]/g, '')) || 0,
+          showTrend: true,
+          showTarget: false,
+          color: research.colorPalette[idx % research.colorPalette.length] || '#6366f1',
+        },
+      });
+      
+      currentX += kpiWidth + 20;
+      maxRowHeight = Math.max(maxRowHeight, kpiHeight);
+    });
+    
+    // Move to next row for charts
+    currentX = 20;
+    currentY += maxRowHeight + 30;
+    maxRowHeight = 0;
+    
+    // Add charts in a 2-column grid
+    research.suggestedCharts.slice(0, 4).forEach((chart: any, idx: number) => {
+      const chartWidth = 424;
+      const chartHeight = 303;
+      
+      if (currentX + chartWidth > canvasWidth - 20) {
+        currentX = 20;
+        currentY += maxRowHeight + 20;
+        maxRowHeight = 0;
+      }
+      
+      newComponents.push({
+        id: `chart-${Date.now()}-${idx}`,
+        type: chart.type as DashboardComponent['type'],
+        position: { x: currentX, y: currentY },
+        size: { width: chartWidth, height: chartHeight },
+        zIndex: research.keyMetrics.length + idx + 1,
+        properties: {
+          title: chart.title,
+          color: research.colorPalette[idx % research.colorPalette.length] || '#6366f1',
+          showLegend: true,
+          showGrid: true,
+          data: generateSampleDataForChartType(chart.type),
+        },
+      });
+      
+      currentX += chartWidth + 20;
+      maxRowHeight = Math.max(maxRowHeight, chartHeight);
+    });
+    
+    setComponents(newComponents);
+    setNextZIndex(newComponents.length + 1);
+    saveToHistory(newComponents, null);
+    setShowResearchPanel(false);
+  };
+
   return (
     <div className={`min-h-screen ${isDarkMode ? 'dark' : ''} bg-gradient-background transition-colors duration-300`}>
       <DragDropContext onDragEnd={handleDragEnd}>
@@ -731,6 +886,15 @@ const Index: React.FC = () => {
                 <Button variant="outline" size="sm" onClick={() => setShowChartSense(true)} className="bg-primary/10 hover:bg-primary/20">
                   <Sparkles className="h-4 w-4 mr-2" />
                   ChartSense
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setShowResearchPanel(true)} 
+                  className="bg-blue-500/10 hover:bg-blue-500/20 border-blue-500/30"
+                >
+                  <Telescope className="h-4 w-4 mr-2" />
+                  Research
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => setShowDashboardsDialog(true)}>
                   <FolderOpen className="h-4 w-4 mr-2" />
@@ -1116,6 +1280,15 @@ const Index: React.FC = () => {
           dashboardTitle={dashboards.find(d => d.id === currentDashboardId)?.title || 'Dashboard'}
         />
 
+        {/* Research Panel */}
+        <ResearchPanel
+          isOpen={showResearchPanel}
+          onClose={() => setShowResearchPanel(false)}
+          onAddKPI={handleAddKPIFromResearch}
+          onAddChart={handleAddChartFromResearch}
+          onApplyPalette={handleApplyResearchPalette}
+          onGenerateDashboard={handleGenerateDashboardFromResearch}
+        />
         
       </DragDropContext>
     </div>
