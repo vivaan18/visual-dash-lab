@@ -248,7 +248,9 @@ export type Database = {
           created_at: string
           email: string
           full_name: string | null
+          gemini_api_key: string | null
           id: string
+          phone: string | null
           role: Database["public"]["Enums"]["app_role"]
           updated_at: string
           user_id: string
@@ -258,7 +260,9 @@ export type Database = {
           created_at?: string
           email: string
           full_name?: string | null
+          gemini_api_key?: string | null
           id?: string
+          phone?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
           user_id: string
@@ -268,7 +272,9 @@ export type Database = {
           created_at?: string
           email?: string
           full_name?: string | null
+          gemini_api_key?: string | null
           id?: string
+          phone?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
           user_id?: string
@@ -427,6 +433,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_chart_defaults: {
+        Row: {
+          chart_type: string
+          created_at: string | null
+          default_properties: Json
+          id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          chart_type: string
+          created_at?: string | null
+          default_properties: Json
+          id?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          chart_type?: string
+          created_at?: string | null
+          default_properties?: Json
+          id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {
